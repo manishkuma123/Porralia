@@ -27,7 +27,7 @@ const app = express();
 require('dotenv').config();
 const cors = require('cors')
 const user = require ("./routes/User");
-const router = require("./routes/pool");
+// const router = require("./routes/pool");
 const authMiddleware = require('./routes/authentication')
 
 
@@ -37,7 +37,7 @@ app.use(express.json());
 app.use(cors())
 connectDB();
 app.use('/',user)
-app.use("/",router)
+// app.use("/",router)
 app.get('/',(req,res)=>{
     res.send("welcome to Porralia Batting App")
 })
