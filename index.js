@@ -37,7 +37,8 @@ app.use(express.json());
 app.use(cors())
 connectDB();
 app.use('/',user)
-app.use("/",router)
+// app.use("/",router)
+app.use("/api/pool",router)
 app.get('/',(req,res)=>{
     res.send("welcome to Porralia Batting App")
 })
