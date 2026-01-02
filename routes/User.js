@@ -1,5 +1,4 @@
 const express = require("express")
-// const {cloudinary}= require("../modules/cloudnairy")
 const router = express.Router();
 const User = require("../modules/User");
 const bcrypt = require("bcryptjs");
@@ -120,24 +119,43 @@ router.get("/api/users",authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
-router.put("/api/auth/profile",upload.single('image'),async (req,res)=>{
+router.put(
+  "/api/auth/updateprofile",
+  authMiddleware,
+  upload.single("profile"),  // matches your Postman key
+  async (req, res) => {
     try {
-        const userid= req.params;
-        let disallowed = ["email","phone","lastRewardAt","joinedAt","totalPoints","_id"];
-        const userprofile = User.findByIdAndUpdate(userid,{
-        name:  req.body.name,
-        image :req.file.profile 
-        })
-        const updateuserdata= await userprofile.save()
-        res.status(201).json({status:true,message:"profile updated"})
+      const userId = req.user.id || req.user._id;
+
+      const updatedUser = await User.findByIdAndUpdate(
+        userId,
+        {
+          name: req.body.name,
+          ...(req.file && {
+            profile:  req.file.path,
+            //   public_id: req.file.filename || req.file.public_id
+            
+          })
+        },
+        { new: true }
+      );
+
+      if (!updatedUser) {
+        return res.status(404).json({ status: false, message: "User not found" });
+      }
+
+      res.status(200).json({
+        status: true,
+        message: "Profile updated",
+        data: updatedUser
+      });
+
     } catch (err) {
-    res.status(500).json({ 
-      status: false,
-      message: "Server error", 
-      details: err.message 
-    });
+      res.status(500).json({ status: false, message: err.message });
+    }
   }
-})
+);
+
 router.post('/api/register',async(req,res)=>
     {
     try {
