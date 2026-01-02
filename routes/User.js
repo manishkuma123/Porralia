@@ -1,4 +1,5 @@
 const express = require("express")
+// const {cloudinary}= require("../modules/cloudnairy")
 const router = express.Router();
 const User = require("../modules/User");
 const bcrypt = require("bcryptjs");
@@ -6,10 +7,49 @@ const jwt = require("jsonwebtoken");
 const OTP = require("../modules/OTP");
 const { sendOTPEmail } = require("./emailService");
 const authMiddleware = require('./authentication')
-
-
-
 const TokenBlacklist = require("../modules/TokenBlacklist");
+const multer = require("multer");
+const cloudinary = require("cloudinary").v2;
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+
+cloudinary.config({
+  
+    cloud_name: "di1bf8n5p",
+  api_key: "756854938742942",
+  api_secret: "uzBfUbHaIJ_7MVosR-N695UajT0"
+});
+
+
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "user_profiles",
+    allowed_formats: ["jpg", "jpeg", "png", "gif"],
+    transformation: [{ width: 500, height: 500, crop: "limit" }],
+    public_id: (req, file) => {
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1E9);
+      return "profile-" + req.user.userId + "-" + uniqueSuffix;
+    }
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif/;
+    const mimetype = allowedTypes.test(file.mimetype);
+    
+    if (mimetype) {
+      return cb(null, true);
+    } else {
+      cb(new Error("Only image files are allowed!"));
+    }
+  }
+});
+
+
+
 
 router.post('/api/auth/logout', authMiddleware, async (req, res) => {
   try {
@@ -53,7 +93,51 @@ router.delete('/api/auth/delete-account', authMiddleware, async (req, res) => {
         });
     }
 });
-
+router.get("/api/auth/profile", authMiddleware, async (req, res) => {
+  try {
+    // req.user already contains the full user document from middleware
+    const userData = req.user.toObject();
+    delete userData.password;
+    
+    res.status(200).json({
+      status: true,
+      message: "Profile fetched successfully",
+      user: userData
+    });
+  } catch (err) {
+    res.status(500).json({ 
+      status: false,
+      message: "Server error", 
+      details: err.message 
+    });
+  }
+});
+router.get("/api/users",authMiddleware, async (req, res) => {
+  try {
+    const users = await User.find({}, "name _id");
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+router.put("/api/auth/profile",upload.single('image'),async (req,res)=>{
+    try {
+        const userid= req.params;
+        let disallowed = ["email","phone","lastRewardAt","joinedAt","totalPoints","_id"];
+        const userprofile = User.findByIdAndUpdate(userid,{
+        name:  req.body.name,
+        image :req.file.profile 
+        })
+        const updateuserdata= await userprofile.save()
+        res.status(201).json({status:true,message:"profile updated"})
+    } catch (err) {
+    res.status(500).json({ 
+      status: false,
+      message: "Server error", 
+      details: err.message 
+    });
+  }
+})
 router.post('/api/register',async(req,res)=>
     {
     try {
@@ -356,7 +440,8 @@ router.post('/api/auth/reset-password', async (req, res) => {
     }
 });
 
-router.get('/api',(req,res)=>{
+
+router.get('/api',authMiddleware,(req,res)=>{
     res.send("user route work")
 })
 
